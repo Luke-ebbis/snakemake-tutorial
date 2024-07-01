@@ -12,7 +12,7 @@ SAMPLES = config["samples"]
 DIRECTIONS = {'R1', "R2"}
 SEQNAMES = SAMPLES['reference'] + SAMPLES['query']
 
-SUMMARIES = ["multiqc-trim"]
+SUMMARIES = ["multiqc-trim", "multiqc-assembly"]
 
 rule all:
   input:
@@ -119,6 +119,12 @@ rule assembly_qc:
     mkdir {output}
     quast {input} -o  {output}
     """
+
+rule quality_report_assembly:
+  conda: "envs/qc.yml"
+  input: directory(expand("results/quality-control/assembly/{seqname}-stats", seqname=SAMPLES["reference"]))
+  output: directory("results/summary/multiqc-assembly")
+  shell: "mkdir {output}; multiqc {input} -o {output}"
 
 ## help:
 ##    Show the help.
