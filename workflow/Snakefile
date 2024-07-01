@@ -20,7 +20,9 @@ rule all:
     # the reference
     reference_assembly=expand("results/data/assembly/{seqname}-spades", 
         seqname = SAMPLES['reference']),
-    summary=expand("results/summary/{summary}", summary=SUMMARIES)
+    summary=expand("results/summary/{summary}", summary=SUMMARIES),
+    mapping=expand("results/data/mapping/{reference}-{query}.pe.sam",
+        query=SAMPLES["query"], reference=SAMPLES["reference"])
 
 
 checkpoint download_data:
@@ -142,6 +144,22 @@ rule quality_report_assembly:
   output: directory("results/summary/multiqc-assembly")
   shell: "mkdir {output}; multiqc {input} -o {output}"
 
+
+rule mapping_index:
+  conda: "envs/mapping.yml"
+  input: "results/data/assembly/{seqname}-spades/contigs.fasta"
+  output: touch("results/data/mapping/{seqname}.indexed")
+  shell: "bwa index {input}"
+  
+rule mapping_mem:
+  conda: "envs/mapping.yml"
+  input:
+    p1="results/data/trimmed/{seqname}_R1.fastq.gz",
+    p2="results/data/trimmed/{seqname}_R2.fastq.gz",
+    reference="results/data/assembly/{reference}-spades/contigs.fasta",
+    index="results/data/mapping/{reference}.indexed"
+  output: "results/data/mapping/{reference}-{seqname}.pe.sam"
+  shell: "bwa mem {input.reference} {input.p1} {input.p2} > {output}"
 
 ## help:
 ##    Show the help.
