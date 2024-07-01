@@ -1,0 +1,9 @@
+name: assembly
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bwa
+  - r-base
+  - samtools
+  - qualimap
