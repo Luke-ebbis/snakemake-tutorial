@@ -12,11 +12,29 @@ SEQNAMES= set(inputs.seqname)
 
 rule all:
   input:
+    "data/data",
     expand("results/data/{seqname}-spades", seqname=SEQNAMES),
     "results/quality-control/multiqc"
 
-#
-# TODO
+
+
+checkpoint download_data:
+  output: directory("data")
+  shell:
+    """
+    mkdir -p {output}
+    cd {output}
+    wget https://osf.io/2jc4a/download -O download.tar.gz
+    tar -xzf download.tar.gz
+    """
+
+def get_sequence_files(wildcards):
+  """Get the sequence names of the downloaded data
+  """
+  checkpoint_output = checkpoints.download_data.get(**wildcards).output[0]
+  files = [f for f in os.listdir(checkpoint_output) if not f.startswith('.')]
+  out = [f"{checkpoint_output}/{d}" for d in files if d.endswith("fastq.gz")]
+  return out
 
 rule fastqc:
   conda: "envs/qc.yml"
@@ -28,7 +46,7 @@ rule quality_report:
   conda: "envs/qc.yml"
   input: rules.fastqc.output
   output: directory("results/quality-control/multiqc")
-  shell: "multiqc {input} -o {output}"
+  shell: "mkdir {output}; multiqc {input} -o {output}"
 
 rule trimming:
   conda: "envs/qc.yml"
