@@ -13,7 +13,7 @@ test = "snakemake --use-conda -c 1 -np"
 slurm = "snakemake --use-conda --workflow-profile workflow/profiles/slurm"
 help  = "bash workflow/help.sh"
 make-help  = "sed -n 's/^##//p' workflow/Snakefile"
-make-dag = "mkdir resources; snakemake --quiet all -c 1 'results/method.png' && mv results/method.png resources; mv resources/method.png resources/pipeline.png"
+make-dag = "mkdir resources; snakemake --use-conda --quiet all -c 1 'results/method.png' && mv results/method.png resources; mv resources/method.png resources/pipeline.png"
 make-ascii = "mkdir resources; pixi run make results/method-simple.ascii &&  mv results/method-simple.ascii resources/pipeline.ascii; cat resources/pipeline.ascii"
 
 

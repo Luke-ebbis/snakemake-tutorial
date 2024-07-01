@@ -12,12 +12,15 @@ SAMPLES = config["samples"]
 DIRECTIONS = {'R1', "R2"}
 SEQNAMES = SAMPLES['reference'] + SAMPLES['query']
 
+SUMMARIES = ["multiqc-trim"]
+
 rule all:
   input:
     "data/data",
     # the reference
     reference_assembly=expand("results/data/assembly/{seqname}-spades", 
-        seqname = SAMPLES['reference'])
+        seqname = SAMPLES['reference']),
+    summary=expand("results/summary/{summary}", summary=SUMMARIES)
 
 checkpoint download_data:
   output: directory("data/data")
@@ -61,7 +64,7 @@ rule quality_report_trim:
   conda: "envs/qc.yml"
   input:
     expand("results/quality-control/data/fastqc/{step}/{seqname}_{direction}", step=["raw", "trimmed"], seqname=SEQNAMES, direction=DIRECTIONS)
-  output: directory("results/quality-control/summary/multiqc-trim")
+  output: directory("results/summary/multiqc-trim")
   shell: "mkdir {output}; multiqc -d {input} -o {output}"
 
 rule trimming:
@@ -134,6 +137,7 @@ rule clean:
 ##    Print the directed acyclic graph.
 ##
 rule build_overview:
+  conda: "envs/utils.yml"
   output:
     "results/method.{fileformat}"
   shell:
