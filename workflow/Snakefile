@@ -34,7 +34,7 @@ def get_sequence_files(wildcards):
   """
   checkpoint_output = checkpoints.download_data.get(**wildcards).output[0]
   files = [f for f in os.listdir(checkpoint_output) if not f.startswith('.')]
-  out = [f"{checkpoint_output}/{d}" for d in files if d.endswith("fastq.gz")]
+  out = [f"{checkpoint_output}/{d}" for d in files if d.endswith("fastq.gz") and d.startswith(wildcards.seqname)]
   return out
 
 # TODO make this paralel
@@ -52,17 +52,17 @@ rule move:
 rule fastqc:
   conda: "envs/qc.yml"
   input: 
-    "results/data/{step}/{seqname}.fastq.gz" 
+    "results/data/{step}/{seqname}_{direction}.fastq.gz" 
   output:
-    directory("results/quality-control/fastqc/{step}")
+    directory("results/quality-control/data/fastqc/{step}/{seqname}_{direction}")
   shell: "mkdir -p {output}; fastqc {input} -o {output}"
 
 rule quality_report_trim:
   conda: "envs/qc.yml"
   input:
-    expand("results/quality-control/fastqc/{step}", step=["raw", "trimmed"])
-  output: directory("results/quality-control/trimming/multiqc")
-  shell: "mkdir {output}; multiqc {input} -o {output}"
+    expand("results/quality-control/data/fastqc/{step}/{seqname}_{direction}", step=["raw", "trimmed"], seqname=SEQNAMES, direction=DIRECTIONS)
+  output: directory("results/quality-control/summary/multiqc-trim")
+  shell: "mkdir {output}; multiqc -d {input} -o {output}"
 
 rule trimming:
   conda: "envs/qc.yml"
@@ -72,8 +72,8 @@ rule trimming:
   output:
     P1="results/data/trimmed/{seqname}_R1.fastq.gz",
     P2="results/data/trimmed/{seqname}_R2.fastq.gz",
-    html_report="results/quality-control/trimmed/{seqname}.html",
-    json_report="results/quality-control/trimmed/{seqname}.json"
+    html_report="results/quality-control/data/trimmed/{seqname}.html",
+    json_report="results/quality-control/data/trimmed/{seqname}.json"
   shell:
     """
     fastp --detect_adapter_for_pe \
