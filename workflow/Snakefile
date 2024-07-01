@@ -70,9 +70,9 @@ rule fastqc:
 rule quality_report_fastqc:
   conda: "envs/qc.yml"
   input:
-    expand("results/quality-control/data/{tool}/{step}/{seqname}_{direction}",
+    expand("results/quality-control/data/fastqc/{step}/{seqname}_{direction}",
         step=["raw", "trimmed"], seqname=SEQNAMES, direction=DIRECTIONS)
-  output: directory("results/summary/multiqc-{tool}")
+  output: directory("results/summary/multiqc-fastqc")
   shell: "mkdir {output}; multiqc -d {input} -o {output}"
 
 ## trimming:
