@@ -12,7 +12,7 @@ SAMPLES = config["samples"]
 DIRECTIONS = {'R1', "R2"}
 SEQNAMES = SAMPLES['reference'] + SAMPLES['query']
 
-SUMMARIES = ["multiqc-trim", "multiqc-assembly"]
+SUMMARIES = ["multiqc-fastqc", "multiqc-assembly"]
 
 rule all:
   input:
@@ -21,8 +21,8 @@ rule all:
     reference_assembly=expand("results/data/assembly/{seqname}-spades", 
         seqname = SAMPLES['reference']),
     summary=expand("results/summary/{summary}", summary=SUMMARIES),
-    mapping=expand("results/data/mapping/{reference}-{query}.pe.sam",
-        query=SAMPLES["query"], reference=SAMPLES["reference"])
+    mapping=expand("results/data/mapping/{seqname}-{query}.pe.sam",
+        query=SAMPLES["query"], seqname=SAMPLES["reference"])
 
 
 checkpoint download_data:
@@ -140,26 +140,70 @@ rule assembly_qc:
 
 rule quality_report_assembly:
   conda: "envs/qc.yml"
-  input: directory(expand("results/quality-control/assembly/{seqname}-stats", seqname=SAMPLES["reference"]))
+  input: expand("results/quality-control/assembly/{seqname}-stats", seqname=SAMPLES["reference"])
   output: directory("results/summary/multiqc-assembly")
   shell: "mkdir {output}; multiqc {input} -o {output}"
 
 
 rule mapping_index:
   conda: "envs/mapping.yml"
-  input: "results/data/assembly/{seqname}-spades/contigs.fasta"
+  input: get_assembled_fasta
   output: touch("results/data/mapping/{seqname}.indexed")
   shell: "bwa index {input}"
   
 rule mapping_mem:
   conda: "envs/mapping.yml"
   input:
-    p1="results/data/trimmed/{seqname}_R1.fastq.gz",
-    p2="results/data/trimmed/{seqname}_R2.fastq.gz",
-    reference="results/data/assembly/{reference}-spades/contigs.fasta",
-    index="results/data/mapping/{reference}.indexed"
-  output: "results/data/mapping/{reference}-{seqname}.pe.sam"
-  shell: "bwa mem {input.reference} {input.p1} {input.p2} > {output}"
+    p1="results/data/trimmed/{query}_R1.fastq.gz",
+    p2="results/data/trimmed/{query}_R2.fastq.gz",
+    seqname=get_assembled_fasta,
+    index="results/data/mapping/{seqname}.indexed"
+  output: temp("results/data/mapping/{seqname}-{query}.pe.sam")
+  shell: "bwa mem {input.seqname} {input.p1} {input.p2} > {output}"
+
+rule fix_mates:
+  conda: "envs/mapping.yml"
+  input: "results/data/mapping/{seqname}-{query}.pe.sam"
+  output: "results/data/mapping/{seqname}-{query}.pe.fixmate.bam"
+  shell:
+    """
+    samtools sort -n -O  sam {input} | samtools fixmate -m -O bam -  {output}
+    """
+  
+
+rule sort_coordinate:
+  conda: "envs/mapping.yml"
+  input: "results/data/mapping/{seqname}-{query}.pe.sorted.bam"
+  output: "results/data/mapping/{seqname}-{query}.pe.sorted.bam"
+  shell:
+    """
+    samtools sort -r -S {input}  {output}
+    """
+
+rule sort_group:
+  conda: "envs/mapping.yml"
+  input: "results/data/mapping/{seqname}-{query}.pe.sorted.deduped.bam"
+  output: "results/data/mapping/{seqname}-{query}.pe.grouped.bam"
+  shell:
+    """
+    samtools sort -N -O bam {input} -o {output}
+    """
+
+rule dedupe:
+  conda: "envs/mapping.yml"
+  input: "results/data/mapping/{seqname}-{query}.pe.fixmate.bam"
+  output: "results/data/mapping/{seqname}-{query}.pe.sorted.deduped.bam"
+  shell:
+    """
+   samtools sort {input} |  samtools markdup  -S -  {output}
+    """
+
+rule map_summary:
+  conda: "envs/mapping.yml"
+  input: "results/data/mapping/{mapping}.pe.grouped.bam"
+  output: "results/summary/{mapping}-samtools.txt"
+  shell: "samtools flagstats {input} > {output}; cat {output}"
+  
 
 ## help:
 ##    Show the help.
@@ -181,11 +225,13 @@ rule clean:
 ##
 rule build_overview:
   conda: "envs/utils.yml"
+  input:
+    "results/data/mapping/anc-evol2.pe.sam"
   output:
     "results/method.{fileformat}"
   shell:
     """
-    snakemake -c 1 --forceall --dag | dot -T{wildcards.fileformat} > {output}
+    snakemake -c 1 {input} --forceall --dag | dot -T{wildcards.fileformat} > {output}
     """
 
 
