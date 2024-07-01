@@ -22,6 +22,7 @@ rule all:
         seqname = SAMPLES['reference']),
     summary=expand("results/summary/{summary}", summary=SUMMARIES)
 
+
 checkpoint download_data:
   output: directory("data/data")
   shell:
@@ -32,6 +33,7 @@ checkpoint download_data:
     tar -xzf download.tar.gz
     """
 
+
 def get_sequence_files(wildcards):
   """Get the sequence names of the downloaded data
   """
@@ -40,7 +42,6 @@ def get_sequence_files(wildcards):
   out = [f"{checkpoint_output}/{d}" for d in files if d.endswith("fastq.gz") and d.startswith(wildcards.seqname)]
   return out
 
-# TODO make this paralel
 
 rule move:
   input:
@@ -52,6 +53,9 @@ rule move:
     cp {input} {output}
     """
 
+## fastqc:
+##    Analyse quality of FASTQ sequences using fastqc.
+##
 rule fastqc:
   conda: "envs/qc.yml"
   input: 
@@ -60,13 +64,20 @@ rule fastqc:
     directory("results/quality-control/data/fastqc/{step}/{seqname}_{direction}")
   shell: "mkdir -p {output}; fastqc {input} -o {output}"
 
-rule quality_report_trim:
+## quality_report_fastqc:
+##    Compile seperate quality metrics per tool into a single report.
+##
+rule quality_report_fastqc:
   conda: "envs/qc.yml"
   input:
-    expand("results/quality-control/data/fastqc/{step}/{seqname}_{direction}", step=["raw", "trimmed"], seqname=SEQNAMES, direction=DIRECTIONS)
-  output: directory("results/summary/multiqc-trim")
+    expand("results/quality-control/data/{tool}/{step}/{seqname}_{direction}",
+        step=["raw", "trimmed"], seqname=SEQNAMES, direction=DIRECTIONS)
+  output: directory("results/summary/multiqc-{tool}")
   shell: "mkdir {output}; multiqc -d {input} -o {output}"
 
+## trimming:
+##    Quality trimming of fastq files.
+##
 rule trimming:
   conda: "envs/qc.yml"
   input:
@@ -90,6 +101,9 @@ rule trimming:
       -o {output.P1} -O {output.P2}
     """
 
+## assembly:
+##    Assemble sequences into contigs.
+##
 checkpoint assembly:
   conda: "envs/assembly.yml"
   input:
@@ -103,11 +117,13 @@ checkpoint assembly:
     spades.py -o {output} -1 {input.P1} -2 {input.P2} --isolate
     """
 
+
 def get_assembled_fasta(wildcards):
   """Get the sequence names of the downloaded data
   """
   checkpoint_output = checkpoints.assembly.get(**wildcards).output[0]
   return f"{checkpoint_output}/contigs.fasta"
+
 
 rule assembly_qc:
   conda: "envs/assembly.yml"
@@ -126,6 +142,7 @@ rule quality_report_assembly:
   output: directory("results/summary/multiqc-assembly")
   shell: "mkdir {output}; multiqc {input} -o {output}"
 
+
 ## help:
 ##    Show the help.
 ##
@@ -133,11 +150,13 @@ rule help:
   input: "workflow/Snakefile"
   shell: "sed -n 's/^##//p' {input}"
 
+
 ## clean:
 ##    Clean all outputs from the results folder.
 ##
 rule clean:
   shell: "rm -rf results/*"
+
 
 ## build_overview:
 ##    Print the directed acyclic graph.
@@ -151,6 +170,7 @@ rule build_overview:
     snakemake -c 1 --forceall --dag | dot -T{wildcards.fileformat} > {output}
     """
 
+
 rule install_easy_graph:
   conda:
     "envs/utils.yml"
@@ -163,6 +183,7 @@ rule install_easy_graph:
     cpanm Graph::Easy
     """
 
+    
 ## build_overview_ascii:
 ##    Prints the graph in ascii format.
 rule build_ascii_graph:
