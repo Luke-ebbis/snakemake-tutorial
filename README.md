@@ -1,6 +1,9 @@
 # snakemake-pixi
 
-Building snakemake workflows with pixi ✨
+In this snakemake workflow, the reads from two different genomes are compared
+via mapping.
+
+![](resources/pipeline.png)
 
 ## Installation
 
