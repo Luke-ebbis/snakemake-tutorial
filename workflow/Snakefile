@@ -41,7 +41,7 @@ def get_sequence_files(wildcards):
 
 rule move:
   input:
-    "data/data/{seqname}.fastq.gz"
+    get_sequence_files
   output:
     "results/data/raw/{seqname}.fastq.gz"
   shell:
