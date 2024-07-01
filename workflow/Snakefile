@@ -203,7 +203,32 @@ rule map_summary:
   input: "results/data/mapping/{mapping}.pe.grouped.bam"
   output: "results/summary/{mapping}-samtools.txt"
   shell: "samtools flagstats {input} > {output}; cat {output}"
-  
+
+rule coverage_stats:
+  conda: "envs/mapping.yml"
+  input: "results/data/mapping/{seqname}-{query}.pe.sorted.deduped.bam"
+  output: "results/statistics/assembly/{seqname}-{query}.depth.txt.gz"
+  shell:
+    """
+    samtools depth {input} | gzip > {output}
+    """
+
+rule coverage_stats_filter:
+  input: "results/statistics/assembly/{seqname}-{query}.depth.txt.gz"
+  output: "results/statistics/assembly/{seqname}-{query}_node-{id}_depth.txt.gz"
+  shell:
+    """
+    zcat {input} | grep "^NODE_{wildcards.id}" > {output}
+    """
+
+rule coverage_stats_contig:
+  conda: "envs/r-analysis.yml"
+  input: "results/statistics/assembly/{seqname}-{query}_node-{id}_depth.txt.gz"
+  output: "results/statistics/assembly/{seqname}-{query}_node-{id}_depth.pdf"
+  shell:
+    """
+    Rscript workflow/scripts/assembly-depth.R -i {input} -o {output}
+    """
 
 ## help:
 ##    Show the help.
