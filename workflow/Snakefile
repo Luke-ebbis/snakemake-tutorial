@@ -12,7 +12,9 @@ SEQNAMES= set(inputs.seqname)
 
 rule all:
   input:
-    expand("results/data/{seqname}_{direction}.trimmed.fastq.gz", seqname=SEQNAMES, direction=DIRECTIONS)
+    expand("results/data/{seqname}-spades", seqname=SEQNAMES),
+    "results/quality-control/multiqc"
+
 #
 # TODO
 
@@ -22,7 +24,7 @@ rule fastqc:
   output: directory("results/quality-control/fastqc")
   shell: "mkdir {output}; fastqc {input} -o {output}"
 
-rule fastqc_report:
+rule quality_report:
   conda: "envs/qc.yml"
   input: rules.fastqc.output
   output: directory("results/quality-control/multiqc")
@@ -49,6 +51,20 @@ rule trimming:
       --json {output.json_report} \
       -i {input.P1}  -I {input.P2} \
       -o {output.P1} -O {output.P2}
+    """
+
+rule assembly:
+  conda: "envs/assembly.yml"
+  input:
+    P1="results/data/{seqname}_R1.trimmed.fastq.gz",
+    P2="results/data/{seqname}_R2.trimmed.fastq.gz"
+  output:
+    directory("results/data/{seqname}-spades")
+  shell:
+    """
+    mkdir -p {output}
+    # spades -o {output} -1 {input.P1} -2 {input.P1}
+    spades.py --help
     """
 
 ## help:
