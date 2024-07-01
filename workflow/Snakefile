@@ -6,25 +6,50 @@
 ## -----
 ##
 
-# rule all:
-#
+inputs=glob_wildcards("data/data/{seqname}_{direction}.fastq.gz")
+DIRECTIONS = set(inputs.direction)
+SEQNAMES= set(inputs.seqname)
+
 rule all:
   input:
-    expand("results/output/{number}.txt", number = range(1, 10))
-
-
+    expand("results/data/{seqname}_{direction}.trimmed.fastq.gz", seqname=SEQNAMES, direction=DIRECTIONS)
+#
+# TODO
 
 rule fastqc:
   conda: "envs/qc.yml"
-  input: expand("data/data/{seqname}.fastq.gz", seqname=glob_wildcards("data/data/{seqname}.fastq.gz").seqname)
+  input: expand("data/data/{seqname}_{direction}.fastq.gz", seqname=SEQNAMES, direction=DIRECTIONS)
   output: directory("results/quality-control/fastqc")
   shell: "mkdir {output}; fastqc {input} -o {output}"
 
-rule multiqc:
+rule fastqc_report:
   conda: "envs/qc.yml"
   input: rules.fastqc.output
   output: directory("results/quality-control/multiqc")
   shell: "multiqc {input} -o {output}"
+
+rule trimming:
+  conda: "envs/qc.yml"
+  input:
+    P1="data/data/{seqname}_R1.fastq.gz",
+    P2="data/data/{seqname}_R2.fastq.gz"
+  output:
+    P1="results/data/{seqname}_R1.trimmed.fastq.gz",
+    P2="results/data/{seqname}_R2.trimmed.fastq.gz",
+    html_report="results/quality-control/trimmed/{seqname}.html",
+    json_report="results/quality-control/trimmed/{seqname}.json"
+  shell:
+    """
+    fastp --detect_adapter_for_pe \
+      --overrepresentation_analysis \
+      --correction \
+      --cut_right \
+      --thread 2 \
+      --html {output.html_report} \
+      --json {output.json_report} \
+      -i {input.P1}  -I {input.P2} \
+      -o {output.P1} -O {output.P2}
+    """
 
 ## help:
 ##    Show the help.
@@ -33,13 +58,13 @@ rule help:
   input: "workflow/Snakefile"
   shell: "sed -n 's/^##//p' {input}"
 
-## clean:                     
+## clean:
 ##    Clean all outputs from the results folder.
 ##
 rule clean:
   shell: "rm -rf results/*"
 
-## build_overview:            
+## build_overview:
 ##    Print the directed acyclic graph.
 ##
 rule build_overview:
