@@ -14,6 +14,7 @@ rule all:
   input:
     "data/data",
     expand("results/data/{seqname}-spades", seqname=SEQNAMES),
+    expand("results/quality-control/assembly/{seqname}-stats", seqname=SEQNAMES),
     "results/quality-control/multiqc"
 
 
@@ -35,6 +36,8 @@ def get_sequence_files(wildcards):
   files = [f for f in os.listdir(checkpoint_output) if not f.startswith('.')]
   out = [f"{checkpoint_output}/{d}" for d in files if d.endswith("fastq.gz")]
   return out
+
+# TODO make this paralel
 
 rule fastqc:
   conda: "envs/qc.yml"
@@ -71,7 +74,7 @@ rule trimming:
       -o {output.P1} -O {output.P2}
     """
 
-rule assembly:
+checkpoint assembly:
   conda: "envs/assembly.yml"
   input:
     P1="results/data/{seqname}_R1.trimmed.fastq.gz",
@@ -82,6 +85,23 @@ rule assembly:
     """
     mkdir -p {output}
     spades.py -o {output} -1 {input.P1} -2 {input.P2} --isolate
+    """
+
+def get_assembled_fasta(wildcards):
+  """Get the sequence names of the downloaded data
+  """
+  checkpoint_output = checkpoints.assembly.get(**wildcards).output[0]
+  return f"{checkpoint_output}/contigs.fasta"
+
+rule assembly_qc:
+  conda: "envs/assembly.yml"
+  input: get_assembled_fasta
+  output: directory("results/quality-control/assembly/{seqname}-stats")
+  message: "Running Quast on {input}"
+  shell:
+    """
+    mkdir {output}
+    quast {input} -o  {output}
     """
 
 ## help:
