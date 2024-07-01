@@ -1,0 +1,6 @@
+samples:
+  reference: 
+      - "anc"
+  query:
+      - "evol1"
+      - "evol2"

@@ -6,25 +6,25 @@
 ## -----
 ##
 
-inputs=glob_wildcards("data/data/{seqname}_{direction}.fastq.gz")
-DIRECTIONS = set(inputs.direction)
-SEQNAMES= set(inputs.seqname)
+configfile: "config/config.yml"
+
+SAMPLES = config["samples"]
+DIRECTIONS = {'R1', "R2"}
+SEQNAMES = SAMPLES['reference'] + SAMPLES['query']
 
 rule all:
   input:
     "data/data",
-    expand("results/data/{seqname}-spades", seqname=SEQNAMES),
-    expand("results/quality-control/assembly/{seqname}-stats", seqname=SEQNAMES),
-    "results/quality-control/multiqc"
-
-
+    # the reference
+    reference_assembly=expand("results/data/assembly/{seqname}-spades", 
+        seqname = SAMPLES['reference'])
 
 checkpoint download_data:
-  output: directory("data")
+  output: directory("data/data")
   shell:
     """
     mkdir -p {output}
-    cd {output}
+    cd data
     wget https://osf.io/2jc4a/download -O download.tar.gz
     tar -xzf download.tar.gz
     """
@@ -39,26 +39,39 @@ def get_sequence_files(wildcards):
 
 # TODO make this paralel
 
+rule move:
+  input:
+    "data/data/{seqname}.fastq.gz"
+  output:
+    "results/data/raw/{seqname}.fastq.gz"
+  shell:
+    """
+    cp {input} {output}
+    """
+
 rule fastqc:
   conda: "envs/qc.yml"
-  input: expand("data/data/{seqname}_{direction}.fastq.gz", seqname=SEQNAMES, direction=DIRECTIONS)
-  output: directory("results/quality-control/fastqc")
-  shell: "mkdir {output}; fastqc {input} -o {output}"
+  input: 
+    "results/data/{step}/{seqname}.fastq.gz" 
+  output:
+    directory("results/quality-control/fastqc/{step}")
+  shell: "mkdir -p {output}; fastqc {input} -o {output}"
 
-rule quality_report:
+rule quality_report_trim:
   conda: "envs/qc.yml"
-  input: rules.fastqc.output
-  output: directory("results/quality-control/multiqc")
+  input:
+    expand("results/quality-control/fastqc/{step}", step=["raw", "trimmed"])
+  output: directory("results/quality-control/trimming/multiqc")
   shell: "mkdir {output}; multiqc {input} -o {output}"
 
 rule trimming:
   conda: "envs/qc.yml"
   input:
-    P1="data/data/{seqname}_R1.fastq.gz",
-    P2="data/data/{seqname}_R2.fastq.gz"
+    P1="results/data/raw/{seqname}_R1.fastq.gz",
+    P2="results/data/raw/{seqname}_R2.fastq.gz"
   output:
-    P1="results/data/{seqname}_R1.trimmed.fastq.gz",
-    P2="results/data/{seqname}_R2.trimmed.fastq.gz",
+    P1="results/data/trimmed/{seqname}_R1.fastq.gz",
+    P2="results/data/trimmed/{seqname}_R2.fastq.gz",
     html_report="results/quality-control/trimmed/{seqname}.html",
     json_report="results/quality-control/trimmed/{seqname}.json"
   shell:
@@ -77,10 +90,10 @@ rule trimming:
 checkpoint assembly:
   conda: "envs/assembly.yml"
   input:
-    P1="results/data/{seqname}_R1.trimmed.fastq.gz",
-    P2="results/data/{seqname}_R2.trimmed.fastq.gz"
+    P1="results/data/trimmed/{seqname}_R1.fastq.gz",
+    P2="results/data/trimmed/{seqname}_R2.fastq.gz"
   output:
-    directory("results/data/{seqname}-spades")
+    directory("results/data/assembly/{seqname}-spades")
   shell:
     """
     mkdir -p {output}
