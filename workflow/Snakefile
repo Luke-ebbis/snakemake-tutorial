@@ -63,8 +63,7 @@ rule assembly:
   shell:
     """
     mkdir -p {output}
-    # spades -o {output} -1 {input.P1} -2 {input.P1}
-    spades.py --help
+    spades.py -o {output} -1 {input.P1} -2 {input.P2} --isolate
     """
 
 ## help:
