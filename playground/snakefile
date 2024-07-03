@@ -1,5 +1,7 @@
+import glob
+
 ## Generate folder with unknown filenames.
-rule random:
+checkpoint random:
   output: directory("results/random")
   params:
     number=10
@@ -13,3 +15,13 @@ rule random:
     done
     """
 
+def get_random(wildcards):
+  out=checkpoints.random.get(**wildcards)
+  outfolder = out.output
+  files = glob.glob(f"{outfolder}/*-number")
+  return files
+
+rule sha:
+  input: get_random
+  output: "results/sha.ssv"
+  shell: "shasum {input} > {output}"
