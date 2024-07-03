@@ -1,0 +1,15 @@
+## Generate folder with unknown filenames.
+rule random:
+  output: directory("results/random")
+  params:
+    number=10
+  shell:
+    """
+    mkdir {output} -p
+    for i in $(seq 1 {params.number});
+    do
+      filename="$((1 + $RANDOM % 10))-number"
+      touch "{output}/$filename"
+    done
+    """
+
