@@ -2,13 +2,11 @@ import glob
 
 ## Generate folder with unknown filenames.
 checkpoint random:
-  output: directory("results/random")
-  params:
-    number=10
+  output: directory("results/random-{n}")
   shell:
     """
     mkdir {output} -p
-    for i in $(seq 1 {params.number});
+    for i in $(seq 1 {wildcards.n});
     do
       filename="$((1 + $RANDOM % 10))-number"
       touch "{output}/$filename"
@@ -23,5 +21,5 @@ def get_random(wildcards):
 
 rule sha:
   input: get_random
-  output: "results/sha.ssv"
+  output: "results/sha-{n}.ssv"
   shell: "shasum {input} > {output}"
