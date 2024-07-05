@@ -24,6 +24,9 @@ rule all:
     mapping=expand("results/data/mapping/{seqname}-{query}.pe.sam",
         query=SAMPLES["query"], seqname=SAMPLES["reference"])
 
+localrules:
+  download_data,
+  move,
 
 checkpoint download_data:
   output: directory("data/data")
