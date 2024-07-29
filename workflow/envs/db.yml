@@ -1,0 +1,7 @@
+name: database
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - oxigraph-server
+  - jvarkit

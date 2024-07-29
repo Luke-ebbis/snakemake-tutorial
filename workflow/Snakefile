@@ -230,6 +230,11 @@ rule coverage_stats_contig:
     Rscript workflow/scripts/assembly-depth.R -i {input} -o {output}
     """
 
+rule db:
+  conda: "envs/db.yml"
+  output: touch('test')
+  shell: "vcf2rdf"
+
 ## help:
 ##    Show the help.
 ##
