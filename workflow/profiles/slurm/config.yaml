@@ -5,8 +5,10 @@ jobs: 100
 
 default-resources:
   - mem_mb=2000
+  - slurm_account="mpmp_cpu"
+  - slurm_partition="cpu1"
   - runtime="1440"
-  - tasks=2
+  - tasks=30
 # https://www.embl.org/groups/bioinformatics-rome/blog/2022/04/snakemake-profile-4-defining-resources-and-threads/
 # https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/slurm.html
 # cluster: "sbatch --output=\"jobs/{rule}/slurm_%x_%j.out\" --error=\"jobs/{rule}/slurm_%x_%j.log\""
